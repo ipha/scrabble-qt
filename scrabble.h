@@ -42,11 +42,11 @@ struct perm {
 };
 
 class Scrabble {
-	int gametype;
 	int cache[2][15][15];
 	HashSet wordlist;
 	HashSet perms;
 public:
+	int gametype;
 	char board[15][15];
 	std::vector<result> results;
 	Scrabble			(const char* wordlist, int gametype);

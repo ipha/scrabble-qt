@@ -213,7 +213,7 @@
       <item>
        <widget class="QLineEdit" name="letters">
         <property name="text">
-         <string></string>
+         <string/>
         </property>
         <property name="maxLength">
          <number>7</number>
@@ -229,6 +229,13 @@
       </item>
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <item>
+         <widget class="QPushButton" name="new_btn">
+          <property name="text">
+           <string>New</string>
+          </property>
+         </widget>
+        </item>
         <item>
          <widget class="QPushButton" name="save_btn">
           <property name="text">
@@ -252,6 +259,16 @@
     </item>
    </layout>
   </widget>
+  <action name="newScrabble">
+   <property name="text">
+    <string>Scrabble</string>
+   </property>
+  </action>
+  <action name="newWordsWithFriends">
+   <property name="text">
+    <string>Words With Friends</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections>
@@ -272,13 +289,29 @@
    </hints>
   </connection>
   <connection>
+   <sender>results</sender>
+   <signal>itemPressed(QListWidgetItem*)</signal>
+   <receiver>ScrabbleGui</receiver>
+   <slot>highlight(QListWidgetItem*)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>733</x>
+     <y>294</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>490</x>
+     <y>246</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
    <sender>save_btn</sender>
    <signal>clicked()</signal>
    <receiver>ScrabbleGui</receiver>
    <slot>save()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>613</x>
+     <x>733</x>
      <y>85</y>
     </hint>
     <hint type="destinationlabel">
@@ -294,24 +327,8 @@
    <slot>load()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>854</x>
+     <x>894</x>
      <y>85</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>490</x>
-     <y>246</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>results</sender>
-   <signal>itemPressed(QListWidgetItem*)</signal>
-   <receiver>ScrabbleGui</receiver>
-   <slot>highlight(QListWidgetItem*)</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>733</x>
-     <y>294</y>
     </hint>
     <hint type="destinationlabel">
      <x>490</x>

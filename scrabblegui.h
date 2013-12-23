@@ -19,10 +19,12 @@ public:
 private:
 	Ui::ScrabbleGui *ui;
 	Scrabble *solver;
+	void new_game(int gametype);
 private slots:
 	void solve();
 	void save();
 	void load();
+	void new_action(QAction* action);
 	void highlight(QListWidgetItem* item);
 };
 

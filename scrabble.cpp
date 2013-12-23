@@ -119,7 +119,7 @@ bool Scrabble::check_word (int x, int y, const char* word, int direction) {
 					if(strlen(new_word) > 1 && !wordlist.contains_tolower(new_word))
 						return false;
 				}
-
+				start++;
 			}
 		} else if(direction == VERTICAL) {
 			for(const char* c = word; *c; c++) {
@@ -128,6 +128,7 @@ bool Scrabble::check_word (int x, int y, const char* word, int direction) {
 					if(strlen(new_word) > 1 && !wordlist.contains_tolower(new_word))
 						return false;
 				}
+				start++;
 			}
 		}
 		return true;

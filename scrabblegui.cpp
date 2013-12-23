@@ -1,6 +1,7 @@
 #include <ctime>
 #include <fstream>
 #include <QFileDialog>
+#include <QMenu>
 #include "scrabblegui.h"
 
 ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::ScrabbleGui) {
@@ -10,11 +11,21 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 
 	solver = new Scrabble("wordlist.txt", gametype);
 
+	// Create new menu
+	QMenu* new_menu = new QMenu();
+	new_menu->addAction(ui->newScrabble);
+	new_menu->addAction(ui->newWordsWithFriends);
+	ui->new_btn->setMenu(new_menu);
+	QObject::connect(new_menu, SIGNAL(triggered(QAction*)),
+					this, SLOT(new_action(QAction*)));
+
+	// Set reults font
 	QFont monofont("monospace");
 	monofont.setStyleHint(QFont::Monospace);
 
 	ui->results->setFont(monofont);
 
+	// Set up board items
 	for(int x = 0; x < 15; x++) {
 		for(int y = 0; y < 15; y++) {
 			QTableWidgetItem *item = new QTableWidgetItem();
@@ -22,35 +33,26 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 			item->setTextAlignment(Qt::AlignCenter);
 			item->setFont(QFont("Sans", 10, QFont::Bold));
 
-			// Double letter
-			if(letter_mult[gametype][x][y] == 2)
-				item->setBackground(QColor(0, 0, 127, 100));
-			// Triple letter
-			else if(letter_mult[gametype][x][y] == 3)
-				item->setBackground(QColor(0, 170, 0, 100));
-			// Double word
-			else if(word_mult[gametype][x][y] == 2)
-				item->setBackground(QColor(170, 0, 0, 100));
-			// Triple word
-			else if(word_mult[gametype][x][y] == 3)
-				item->setBackground(QColor(255, 170, 0, 100));
-			// Center
-			if(x == 7 && y == 7)
-				item->setBackground(QColor(0, 0, 0, 100));
-
 			ui->board->setItem(y, x, item);
 		}
 	}
 
+	new_game(gametype);
+
 	// If debug.save exists load it and start a solve
 	std::ifstream debug_file("debug.save");
 	if(debug_file) {
+		// Read game type
+		char c = debug_file.get();
+		debug_file.get();
+		new_game(c == '0' ? SCRABBLE : WORDSWITHFRIENDS);
+
+		// Read tiles
 		char tiles[8];
 		debug_file.getline(tiles,8);
 		ui->letters->setText(tiles);
 
-		char c;
-
+		// Read board
 		for(int y = 0; y < 15; y++) {
 			for(int x = 0; x < 15; x++) {
 				do {
@@ -135,6 +137,7 @@ void ScrabbleGui::save() {
 	std::ofstream file(qPrintable(file_name), std::fstream::trunc);
 
 	// TODO: Better file format
+	file << solver->gametype << "\n";
 	file << qPrintable(ui->letters->displayText()) << "\n";
 	for(int y = 0; y < 15; y++) {
 		for(int x = 0; x < 15; x++) {
@@ -158,18 +161,58 @@ void ScrabbleGui::load() {
 
 	std::ifstream file(qPrintable(file_name));
 
+	// Read game type
+	char c = file.get();
+	file.get();
+	new_game(c == '0' ? SCRABBLE : WORDSWITHFRIENDS);
+
+	// Read tiles
 	char tiles[8];
 	file.getline(tiles,8);
 	ui->letters->setText(tiles);
 
-	char c;
-
+	// Read board
 	for(int y = 0; y < 15; y++) {
 		for(int x = 0; x < 15; x++) {
 			do {
 				c = file.get();
 			} while(c == ',' || c == '\n');
 			ui->board->item(y, x)->setText(QChar(c));
+		}
+	}
+}
+
+void ScrabbleGui::new_action(QAction* action) {
+	qDebug(qPrintable(action->text()));
+	int gametype = action->text() == "Scrabble" ? SCRABBLE : WORDSWITHFRIENDS;
+	new_game(gametype);
+}
+
+void ScrabbleGui::new_game(int gametype) {
+	solver->gametype = gametype;
+	ui->letters->setText("");
+	ui->results->clear();
+	// Set up board colors
+	for(int x = 0; x < 15; x++) {
+		for(int y = 0; y < 15; y++) {
+			ui->board->item(y, x)->setText(" ");
+			// Double letter
+			if(letter_mult[gametype][x][y] == 2)
+				ui->board->item(y, x)->setBackground(QColor(0, 0, 127, 100));
+			// Triple letter
+			else if(letter_mult[gametype][x][y] == 3)
+				ui->board->item(y, x)->setBackground(QColor(0, 170, 0, 100));
+			// Double word
+			else if(word_mult[gametype][x][y] == 2)
+				ui->board->item(y, x)->setBackground(QColor(170, 0, 0, 100));
+			// Triple word
+			else if(word_mult[gametype][x][y] == 3)
+				ui->board->item(y, x)->setBackground(QColor(255, 170, 0, 100));
+			// Center
+			else if(x == 7 && y == 7)
+				ui->board->item(y, x)->setBackground(QColor(0, 0, 0, 100));
+			else
+				ui->board->item(y, x)->setBackground(QColor(255, 255, 255, 255));
 		}
 	}
 }

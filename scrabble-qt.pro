@@ -18,6 +18,3 @@ HEADERS	+=	scrabble.h \
 			hashset.h
 
 FORMS	+=	scrabblegui.ui
-
-OTHER_FILES += \
-    wordlist.txt
