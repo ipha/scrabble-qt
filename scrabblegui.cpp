@@ -9,10 +9,17 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 
 	int gametype = WORDSWITHFRIENDS;
 
+	std::clock_t c_start = std::clock();
+	// Start timer
+	//
 	solver = new Scrabble("wordlist.txt", gametype);
+	//
+	// End timer
+	std::clock_t c_end = std::clock();
+	printf("Wordlist load took %.0f ms\n", 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC);
 
 	// Create new menu
-	QMenu* new_menu = new QMenu();
+	new_menu = new QMenu();
 	new_menu->addAction(ui->newScrabble);
 	new_menu->addAction(ui->newWordsWithFriends);
 	ui->new_btn->setMenu(new_menu);
@@ -67,6 +74,7 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 
 ScrabbleGui::~ScrabbleGui() {
 	delete ui;
+	delete new_menu;
 	delete solver;
 }
 

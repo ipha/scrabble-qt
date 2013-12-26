@@ -18,6 +18,7 @@ public:
 	~ScrabbleGui();
 private:
 	Ui::ScrabbleGui *ui;
+	QMenu* new_menu;
 	Scrabble *solver;
 	void new_game(int gametype);
 private slots:

@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <fstream>
 #include <algorithm>	// std::sort
 #include "scrabble.h"
 
@@ -7,21 +6,24 @@ Scrabble::Scrabble (const char* filename, int game) {
 	gametype = game;
 
 	// Open wordfile and add to list
-	std::ifstream wordfile(filename);
-	char* line = new char[STRSIZE];
-	while(wordfile.getline(line, STRSIZE)) {
-		if(!wordlist.add(line))
-			delete[] line;
-		line = new char[STRSIZE];
+	FILE* wordfile = fopen(filename, "r");
+	if(wordfile) {
+		char* line = new char[STRSIZE];
+		while(fscanf(wordfile, "%15s", line) != EOF) {
+			if(!wordlist.add(line))
+				delete[] line;
+			line = new char[STRSIZE];
+		}
+		delete[] line;
+		fclose(wordfile);
 	}
-	delete[] line;
-	wordfile.close();
 
 	fprintf(stderr, "There are %i words in the list\n", wordlist.size());
 	fprintf(stderr, "with %i buckets and %i collisions\n", wordlist.bucket_count(), wordlist.collisions_count());
 }
 
 Scrabble::~Scrabble () {
+	
 }
 
 void Scrabble::solve (const char* tiles) {
@@ -109,23 +111,23 @@ void Scrabble::solve (const char* tiles) {
 bool Scrabble::check_word (int x, int y, const char* word, int direction) {
 	if(wordlist.contains_tolower(word)) {
 		// Check each new word
-		char new_word[16];
+		char new_word[STRSIZE];
 		int start = cache[direction][x][y];
 
 		if(direction == HORIZONTAL) {
-			for(const char* c = word; *c; c++) {
+			for(; *word; word++) {
 				if(board[start][y] == ' ') {
-					full_word(new_word, start, y, *c, VERTICAL);
-					if(strlen(new_word) > 1 && !wordlist.contains_tolower(new_word))
+					full_word(new_word, start, y, *word, VERTICAL);
+					if(new_word[1] && !wordlist.contains_tolower(new_word))
 						return false;
 				}
 				start++;
 			}
 		} else if(direction == VERTICAL) {
-			for(const char* c = word; *c; c++) {
+			for(; *word; word++) {
 				if(board[x][start] == ' ') {
-					full_word(new_word, x, start, *c, HORIZONTAL);
-					if(strlen(new_word) > 1 && !wordlist.contains_tolower(new_word))
+					full_word(new_word, x, start, *word, HORIZONTAL);
+					if(new_word[1] && !wordlist.contains_tolower(new_word))
 						return false;
 				}
 				start++;
@@ -133,7 +135,6 @@ bool Scrabble::check_word (int x, int y, const char* word, int direction) {
 		}
 		return true;
 	}
-	// 
 	return false;
 }
 
@@ -219,36 +220,31 @@ bool Scrabble::check_spot (int x, int y, int length, int direction) {
 void Scrabble::get_frame (char* frame, int x, int y, int length, int direction) {
 	int frame_index = 0;
 	int start = cache[direction][x][y];
+
 	if(direction == HORIZONTAL) {
-		while(start < 15 && board[start][y] != ' ') {
-			frame[frame_index] = board[start][y];
-			start++;
+		while((start+frame_index) < 15 && board[start+frame_index][y] != ' ') {
+			frame[frame_index] = board[start+frame_index][y];
 			frame_index++;
 		}
 		for(int i = 0; i < length; i++) {
-			frame[frame_index] = board[start][y];
-			start++;
+			frame[frame_index] = board[start+frame_index][y];
 			frame_index++;
-			while(start < 15 && board[start][y] != ' ') {
-				frame[frame_index] = board[start][y];
-				start++;
+			while((start+frame_index) < 15 && board[start+frame_index][y] != ' ') {
+				frame[frame_index] = board[start+frame_index][y];
 				frame_index++;
 			}
 		}
 	}
 	if(direction == VERTICAL) {
-		while(start < 15 && board[x][start] != ' ') {
-			frame[frame_index] = board[x][start];
-			start++;
+		while((start+frame_index) < 15 && board[x][start+frame_index] != ' ') {
+			frame[frame_index] = board[x][start+frame_index];
 			frame_index++;
 		}
 		for(int i = 0; i < length; i++) {
-			frame[frame_index] = board[x][start];
-			start++;
+			frame[frame_index] = board[x][start+frame_index];
 			frame_index++;
-			while(start < 15 && board[x][start] != ' ') {
-				frame[frame_index] = board[x][start];
-				start++;
+			while((start+frame_index) < 15 && board[x][start+frame_index] != ' ') {
+				frame[frame_index] = board[x][start+frame_index];
 				frame_index++;
 			}
 		}
@@ -257,19 +253,16 @@ void Scrabble::get_frame (char* frame, int x, int y, int length, int direction) 
 	frame[frame_index] = '\0';
 }
 
+// Magic
 void Scrabble::fill_frame (char* word, const char* frame, const char* tiles) {
-	int tiles_index = 0;
-	int frame_index = 0;
-
-	for(frame_index = 0; frame[frame_index]; frame_index++) {
-		if(frame[frame_index] == ' ')
-			word[frame_index] = tiles[tiles_index++];
+	for(; *frame; frame++) {
+		if(*frame == ' ')
+			*(word++) = *(tiles++);
 		else
-			word[frame_index] = frame[frame_index];
+			*(word++) = *frame;
 	}
-
 	// Null terminate new string
-	word[frame_index] = '\0';
+	*word = '\0';
 }
 
 void Scrabble::full_word (char* word, int x, int y, char c, int direction) {
