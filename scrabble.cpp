@@ -8,18 +8,15 @@ Scrabble::Scrabble (const char* filename, int game) {
 	// Open wordfile and add to list
 	FILE* wordfile = fopen(filename, "r");
 	if(wordfile) {
-		char* line = new char[STRSIZE];
+		char line[STRSIZE];
 		while(fscanf(wordfile, "%15s", line) != EOF) {
-			if(!wordlist.add(line))
-				delete[] line;
-			line = new char[STRSIZE];
+			wordlist.add(line);
 		}
-		delete[] line;
 		fclose(wordfile);
 	}
 
-	fprintf(stderr, "There are %i words in the list\n", wordlist.size());
-	fprintf(stderr, "with %i buckets and %i collisions\n", wordlist.bucket_count(), wordlist.collisions_count());
+	printf("There are %i words in the list\n", wordlist.size());
+	printf("with %i nodes and %i end points\n", wordlist.node_count(), wordlist.endpoint_count());
 }
 
 Scrabble::~Scrabble () {
@@ -109,7 +106,7 @@ void Scrabble::solve (const char* tiles) {
 }
 
 bool Scrabble::check_word (int x, int y, const char* word, int direction) {
-	if(wordlist.contains_tolower(word)) {
+	if(wordlist.contains(word)) {
 		// Check each new word
 		char new_word[STRSIZE];
 		int start = cache[direction][x][y];
@@ -118,7 +115,7 @@ bool Scrabble::check_word (int x, int y, const char* word, int direction) {
 			for(; *word; word++) {
 				if(board[start][y] == ' ') {
 					full_word(new_word, start, y, *word, VERTICAL);
-					if(new_word[1] && !wordlist.contains_tolower(new_word))
+					if(new_word[1] && !wordlist.contains(new_word))
 						return false;
 				}
 				start++;
@@ -127,7 +124,7 @@ bool Scrabble::check_word (int x, int y, const char* word, int direction) {
 			for(; *word; word++) {
 				if(board[x][start] == ' ') {
 					full_word(new_word, x, start, *word, HORIZONTAL);
-					if(new_word[1] && !wordlist.contains_tolower(new_word))
+					if(new_word[1] && !wordlist.contains(new_word))
 						return false;
 				}
 				start++;

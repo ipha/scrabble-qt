@@ -4,6 +4,7 @@
 #include <cstring>
 #include <vector>
 #include "hashset.h"
+#include "trieset.h"
 #include "scrabblerules.h"
 
 #define HORIZONTAL 0
@@ -43,7 +44,7 @@ struct perm {
 
 class Scrabble {
 	int cache[2][15][15];
-	HashSet wordlist;
+	TrieSet wordlist;
 	HashSet perms;
 public:
 	int gametype;
