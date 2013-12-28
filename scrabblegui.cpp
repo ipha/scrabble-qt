@@ -12,7 +12,7 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 	std::clock_t c_start = std::clock();
 	// Start timer
 	//
-	solver = new Scrabble("wordlist.txt", gametype);
+	solver = new Scrabble("randlist.txt", gametype);
 	//
 	// End timer
 	std::clock_t c_end = std::clock();

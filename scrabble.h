@@ -2,15 +2,17 @@
 #define SCRABBLE_H
 
 #include <cstring>
-#include <vector>
-#include "hashset.h"
-#include "trieset.h"
+#include <utility> // std::pair
+#include <set>
+#include "ternarytree.h"
 #include "scrabblerules.h"
 
 #define HORIZONTAL 0
 #define VERTICAL 1
 
 #define STRSIZE 16
+
+typedef std::pair<int, int> score_t;
 
 struct result {
 	char word[STRSIZE];
@@ -30,32 +32,26 @@ struct result {
 	}
 };
 
-struct score_t {
-	int score;
-	int weight;
-};
-
-struct perm {
-	const char* tiles;
-	bool operator ==(const char* s) const {
-		return (strcmp(s, tiles) == 0);
+struct set_strcomp {
+	bool operator()(const char *s1, const char *s2) const {
+		return strcmp(s1, s2) < 0;
 	}
 };
 
 class Scrabble {
 	int cache[2][15][15];
-	TrieSet wordlist;
-	HashSet perms;
+	TernaryTree wordlist;
+	std::set<const char*, set_strcomp> perms;
 public:
 	int gametype;
 	char board[15][15];
-	std::vector<result> results;
+	std::set<result> results;
 	Scrabble			(const char* wordlist, int gametype);
 	~Scrabble			();
 	void solve			(const char* tiles);
 private:
 	void update_cache	();
-	bool check_word		(int x, int y, const char* word, int direction);
+	bool check_word		(int x, int y, const char* frame, const char* tiles, int direction);
 	bool check_spot		(int x, int y, int length, int direction);
 	void get_frame		(char* frame, int x, int y, int length, int direction);
 	void fill_frame		(char* word, const char* frame, const char* tiles);

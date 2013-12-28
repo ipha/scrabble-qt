@@ -15,7 +15,6 @@ SOURCES	+=	main.cpp \
 HEADERS	+=	scrabble.h \
 			scrabblerules.h \
 			scrabblegui.h \
-			hashset.h \
-			trieset.h
+			ternarytree.h
 
 FORMS	+=	scrabblegui.ui

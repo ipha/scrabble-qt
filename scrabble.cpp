@@ -1,5 +1,4 @@
 #include <cstdio>
-#include <algorithm>	// std::sort
 #include "scrabble.h"
 
 Scrabble::Scrabble (const char* filename, int game) {
@@ -13,14 +12,19 @@ Scrabble::Scrabble (const char* filename, int game) {
 			wordlist.add(line);
 		}
 		fclose(wordfile);
+	} else {
+		fprintf(stderr, "ERROR: can't open file: %s", filename);
 	}
+	wordlist.build_height();
 
 	printf("There are %i words in the list\n", wordlist.size());
-	printf("with %i nodes and %i end points\n", wordlist.node_count(), wordlist.endpoint_count());
+	printf("with %i nodes\n", wordlist.node_count());
 }
 
 Scrabble::~Scrabble () {
-	
+	// delete perms
+	for(auto perm : perms)
+		delete[] perm;
 }
 
 void Scrabble::solve (const char* tiles) {
@@ -34,6 +38,8 @@ void Scrabble::solve (const char* tiles) {
 
 	for(int length = 1; length <= 7; length++) {
 		// Empty perms set
+		for(auto perm : perms)
+			delete[] perm;
 		perms.clear();
 
 		// Fill perms set
@@ -57,21 +63,25 @@ void Scrabble::solve (const char* tiles) {
 		for(int x = 0; x < (15-length); x++) {
 			if(check_spot(x, y, length, HORIZONTAL)){
 				get_frame(frame, x, y, length, HORIZONTAL);
-				for(auto it = perms.begin(); it; perms.next(&it)) {
-					fill_frame(word, frame, *it);
-					if(check_word(x, y, word, HORIZONTAL)) {
-						score_t s = score(x, y, HORIZONTAL, word);
-						results.push_back(result{
-							"",
-							.x = cache[HORIZONTAL][x][y],
-							.y = y,
-							.direction = HORIZONTAL,
-							.score = s.score,
-							.weight = s.weight
-						});
-						strcpy(results.back().word, word);
+				if(wordlist.set_prefix(frame)) {
+					for(auto perm : perms) {
+						if(check_word(x, y, frame, perm, HORIZONTAL)) {
+							fill_frame(word, frame, perm);
+							score_t s = score(x, y, HORIZONTAL, word);
+							result r{
+								"",
+								cache[HORIZONTAL][x][y],
+								y,
+								HORIZONTAL,
+								s.first,
+								s.second
+							};
+							strcpy(r.word, word);
+							results.insert(r);
+						}
 					}
 				}
+
 			}
 		}
 		}
@@ -81,49 +91,52 @@ void Scrabble::solve (const char* tiles) {
 		for(int x = 0; x < 15; x++) {
 			if(check_spot(x, y, length, VERTICAL)){
 				get_frame(frame, x, y, length, VERTICAL);
-				for(auto it = perms.begin(); it; perms.next(&it)) {
-					fill_frame(word, frame, *it);
-					if(check_word(x, y, word, VERTICAL)) {
-						score_t s = score(x, y, VERTICAL, word);
-						results.push_back(result{
-							"",
-							.x = x,
-							.y = cache[VERTICAL][x][y],
-							.direction = VERTICAL,
-							.score = s.score,
-							.weight = s.weight
-						});
-						strcpy(results.back().word, word);
+				if(wordlist.set_prefix(frame)) {
+					for(auto perm : perms) {
+						if(check_word(x, y, frame, perm, VERTICAL)) {
+							fill_frame(word, frame, perm);
+							score_t s = score(x, y, VERTICAL, word);
+							result r{
+								"",
+								x,
+								cache[VERTICAL][x][y],
+								VERTICAL,
+								s.first,
+								s.second
+							};
+							strcpy(r.word, word);
+							results.insert(r);
+						}
 					}
 				}
+
 			}
 		}
 		}
 	}
 
 	// Sort results
-	std::sort(results.begin(), results.end());
+//	std::sort(results.begin(), results.end());
 }
 
-bool Scrabble::check_word (int x, int y, const char* word, int direction) {
-	if(wordlist.contains(word)) {
+bool Scrabble::check_word (int x, int y, const char* frame, const char* tiles, int direction) {
+	if(wordlist.contains_prefix(frame, tiles)) {
 		// Check each new word
 		char new_word[STRSIZE];
 		int start = cache[direction][x][y];
-
 		if(direction == HORIZONTAL) {
-			for(; *word; word++) {
-				if(board[start][y] == ' ') {
-					full_word(new_word, start, y, *word, VERTICAL);
+			for(; *frame; frame++) {
+				if(*frame == ' ') {
+					full_word(new_word, start, y, *(tiles++), VERTICAL);
 					if(new_word[1] && !wordlist.contains(new_word))
 						return false;
 				}
 				start++;
 			}
 		} else if(direction == VERTICAL) {
-			for(; *word; word++) {
-				if(board[x][start] == ' ') {
-					full_word(new_word, x, start, *word, HORIZONTAL);
+			for(; *frame; frame++) {
+				if(*frame == ' ') {
+					full_word(new_word, x, start, *(tiles++), HORIZONTAL);
 					if(new_word[1] && !wordlist.contains(new_word))
 						return false;
 				}
@@ -263,10 +276,8 @@ void Scrabble::fill_frame (char* word, const char* frame, const char* tiles) {
 }
 
 void Scrabble::full_word (char* word, int x, int y, char c, int direction) {
-	char frame[STRSIZE];
-	char tiles[2] = {c, '\0'};
-	get_frame(frame, x, y, 1, direction);
-	fill_frame(word, frame, tiles);
+	get_frame(word, x, y, 1, direction);
+	*strchr(word, ' ') = c;
 }
 
 int Scrabble::letter_score(char c) {
@@ -354,7 +365,7 @@ score_t Scrabble::score (int x, int y, int direction, const char* word) {
 	if(strlen(word) == 2)
 		weight_score *= 0.8;
 
-	return score_t{score, static_cast<int>(weight_score)};
+	return std::make_pair(score, static_cast<int>(weight_score));
 }
 
 void Scrabble::get_perms (const char* tiles, unsigned int length, const char* base) {
@@ -368,7 +379,7 @@ void Scrabble::get_perms (const char* tiles, unsigned int length, const char* ba
 			temp[strlen(temp)] = tiles[i];
 
 			if(strlen(temp) == length) {
-				if(!perms.add(temp))
+				if(!perms.insert(temp).second)
 					delete[] temp;
 			} else {
 				char temp2[8];
