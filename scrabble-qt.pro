@@ -11,6 +11,7 @@ TEMPLATE =	app
 SOURCES	+=	main.cpp \
 			scrabble.cpp \
 			scrabblegui.cpp \
+			ternarytree.cpp
 
 HEADERS	+=	scrabble.h \
 			scrabblerules.h \
