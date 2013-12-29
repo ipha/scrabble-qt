@@ -30,6 +30,14 @@ struct result {
 		}
 		return (weight < r.weight);
 	}
+	// Default constructor needed for Q_DECLARE_METATYPE
+	result() {
+	}
+
+	result(const char* word, int x, int y,  int direction, score_t score) :
+		x(x), y(y), direction(direction), score(score.first), weight(score.second) {
+		strcpy(this->word, word);
+	}
 };
 
 struct set_strcomp {

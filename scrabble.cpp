@@ -61,27 +61,16 @@ void Scrabble::solve (const char* tiles) {
 		printf("Checking length %i horizontal\n", length);
 		for(int y = 0; y < 15; y++) {
 		for(int x = 0; x < (15-length); x++) {
-			if(check_spot(x, y, length, HORIZONTAL)){
-				get_frame(frame, x, y, length, HORIZONTAL);
-				if(wordlist.set_prefix(frame)) {
-					for(auto perm : perms) {
-						if(check_word(x, y, frame, perm, HORIZONTAL)) {
-							fill_frame(word, frame, perm);
-							score_t s = score(x, y, HORIZONTAL, word);
-							result r{
-								"",
-								cache[HORIZONTAL][x][y],
-								y,
-								HORIZONTAL,
-								s.first,
-								s.second
-							};
-							strcpy(r.word, word);
-							results.insert(r);
-						}
-					}
+			if(!check_spot(x, y, length, HORIZONTAL))
+				continue;
+			get_frame(frame, x, y, length, HORIZONTAL);
+			if(!wordlist.set_prefix(frame))
+				continue;
+			for(auto perm : perms) {
+				if(check_word(x, y, frame, perm, HORIZONTAL)) {
+					fill_frame(word, frame, perm);
+					results.insert(result(word, cache[HORIZONTAL][x][y], y, HORIZONTAL, score(x, y, HORIZONTAL, word)));
 				}
-
 			}
 		}
 		}
@@ -89,34 +78,20 @@ void Scrabble::solve (const char* tiles) {
 		printf("Checking length %i vertical\n", length);
 		for(int y = 0; y < (15-length); y++) {
 		for(int x = 0; x < 15; x++) {
-			if(check_spot(x, y, length, VERTICAL)){
-				get_frame(frame, x, y, length, VERTICAL);
-				if(wordlist.set_prefix(frame)) {
-					for(auto perm : perms) {
-						if(check_word(x, y, frame, perm, VERTICAL)) {
-							fill_frame(word, frame, perm);
-							score_t s = score(x, y, VERTICAL, word);
-							result r{
-								"",
-								x,
-								cache[VERTICAL][x][y],
-								VERTICAL,
-								s.first,
-								s.second
-							};
-							strcpy(r.word, word);
-							results.insert(r);
-						}
-					}
+			if(!check_spot(x, y, length, VERTICAL))
+				continue;
+			get_frame(frame, x, y, length, VERTICAL);
+			if(!wordlist.set_prefix(frame))
+				continue;
+			for(auto perm : perms) {
+				if(check_word(x, y, frame, perm, VERTICAL)) {
+					fill_frame(word, frame, perm);
+					results.insert(result(word, x, cache[VERTICAL][x][y], VERTICAL, score(x, y, VERTICAL, word)));
 				}
-
 			}
 		}
 		}
 	}
-
-	// Sort results
-//	std::sort(results.begin(), results.end());
 }
 
 bool Scrabble::check_word (int x, int y, const char* frame, const char* tiles, int direction) {
