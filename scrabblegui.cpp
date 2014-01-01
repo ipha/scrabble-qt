@@ -1,4 +1,3 @@
-#include <ctime>
 #include <fstream>
 #include <QFileDialog>
 #include <QMenu>
@@ -9,16 +8,23 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 
 	int gametype = WORDSWITHFRIENDS;
 
-	std::clock_t c_start = std::clock();
-	// Start timer
-	//
-	solver = new Scrabble("randlist.txt", gametype);
-	//
-	// End timer
-	std::clock_t c_end = std::clock();
-	printf("Wordlist load took %.0f ms\n", 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC);
+	// Setup thread
+	solver = new ScrabbleWorker("randlist.txt", gametype);
+	solverThread = new QThread;
+	solver->moveToThread(solverThread);
+	connect(solver, SIGNAL(solveDone()), this, SLOT(solveDone()));
+	connect(solverThread, SIGNAL(started()), solver, SLOT(solve()));
 
-	// Create new menu
+	// Fix board resizing
+	#if QT_VERSION < QT_VERSION_CHECK(5, 0, 0)
+		ui->board->horizontalHeader()->setResizeMode(QHeaderView::Stretch);
+		ui->board->verticalHeader()->setResizeMode(QHeaderView::Stretch);
+	#else
+		ui->board->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+		ui->board->verticalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+	#endif
+
+	// Create menu for new game list
 	new_menu = new QMenu();
 	new_menu->addAction(ui->newScrabble);
 	new_menu->addAction(ui->newWordsWithFriends);
@@ -26,56 +32,34 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 	QObject::connect(new_menu, SIGNAL(triggered(QAction*)),
 					this, SLOT(new_action(QAction*)));
 
-	// Set reults font
+	// Set results font
 	QFont monofont("monospace");
 	monofont.setStyleHint(QFont::Monospace);
-
 	ui->results->setFont(monofont);
 
-	// Set up board items
+	// Set up board items: alignment and font
 	for(int x = 0; x < 15; x++) {
-		for(int y = 0; y < 15; y++) {
-			QTableWidgetItem *item = new QTableWidgetItem();
+	for(int y = 0; y < 15; y++) {
+		QTableWidgetItem *item = new QTableWidgetItem();
 
-			item->setTextAlignment(Qt::AlignCenter);
-			item->setFont(QFont("Sans", 10, QFont::Bold));
+		item->setTextAlignment(Qt::AlignCenter);
+		item->setFont(QFont("Sans", 10, QFont::Bold));
 
-			ui->board->setItem(y, x, item);
-		}
-	}
+		ui->board->setItem(y, x, item);
+	}}
 
+	// Set board colors
 	new_game(gametype);
 
 	// If debug.save exists load it and start a solve
-	std::ifstream debug_file("debug.save");
-	if(debug_file) {
-		// Read game type
-		char c = debug_file.get();
-		debug_file.get();
-		new_game(c == '0' ? SCRABBLE : WORDSWITHFRIENDS);
-
-		// Read tiles
-		char tiles[8];
-		debug_file.getline(tiles,8);
-		ui->letters->setText(tiles);
-
-		// Read board
-		for(int y = 0; y < 15; y++) {
-			for(int x = 0; x < 15; x++) {
-				do {
-					c = debug_file.get();
-				} while(c == ',' || c == '\n');
-				ui->board->item(y, x)->setText(QChar(c));
-			}
-		}
-		solve();
-	}
+	load("debug.save");
 }
 
 ScrabbleGui::~ScrabbleGui() {
 	delete ui;
 	delete new_menu;
 	delete solver;
+	delete solverThread;
 }
 
 void ScrabbleGui::highlight(QListWidgetItem* item) {
@@ -97,42 +81,51 @@ void ScrabbleGui::highlight(QListWidgetItem* item) {
 void ScrabbleGui::solve() {
 	ui->results->clear();
 
-	std::clock_t c_start = std::clock();
-	// Start timer
-	//
-	// Read board
+	// Disable button
+	ui->solve_btn->setText("Solving...");
+	ui->solve_btn->setEnabled(false);
+
+	// Copy board to solver
 	for(int x = 0; x < 15; x++) {
 		for(int y = 0; y < 15; y++) {
 			QString tile = ui->board->item(y, x)->text();
 			if(tile.length() == 1 && ((tile[0] >= 'A' && tile[0] <= 'z') || tile[0] == ' ')) {
-				solver->board[x][y] = tile[0].toLatin1();
+				solver->setBoard(x, y, tile[0].toLatin1());
 			} else {
 				qWarning("Error at tile %2i, %2i: %s", x, y, qPrintable(tile));
 				ui->board->item(y, x)->setText(" ");
-				solver->board[x][y] = ' ';
+				solver->setBoard(x, y, ' ');
 			}
 		}
 	}
-	// Start solve
-	solver->solve(qPrintable(ui->letters->displayText()));
+
+	// Copy tiles to solver
+	solver->setTiles(ui->letters->displayText());
+
+	// Start solve in new thread
+	solverThread->start();
+}
+
+void ScrabbleGui::solveDone() {
+	solverThread->quit();
+	// Enable button
+	ui->solve_btn->setText("Solve");
+	ui->solve_btn->setEnabled(true);
+
 	// Display results
-	for(auto it=solver->results.begin(); it!=solver->results.end(); ++it) {
+	for(auto result : solver->game->results) {
 		QListWidgetItem* item = new QListWidgetItem(
 			QString("%1: x: %2  y: %3 Weight: %4 Score: %5 Word: %6").
-					arg(it->direction ? "Vert" : "Horz").
-					arg(it->x + 1, 2).
-					arg(it->y + 1, 2).
-					arg(it->weight, 3).
-					arg(it->score, 3).
-					arg(it->word));
-		item->setData(Qt::UserRole, qVariantFromValue((result)*it));
+					arg(result.direction ? "Vert" : "Horz").
+					arg(result.x + 1, 2).
+					arg(result.y + 1, 2).
+					arg(result.weight, 3).
+					arg(result.score, 3).
+					arg(result.word));
+		item->setData(Qt::UserRole, qVariantFromValue(result));
 		ui->results->addItem(item);
 	}
-	//
-	// End timer
-	std::clock_t c_end = std::clock();
-	printf("Solve took %.0f ms\n", 1000.0 * (c_end-c_start) / CLOCKS_PER_SEC);
-	ui->results->addItem((QString("Solve took %1 ms").arg(1000.0 * (c_end-c_start) / CLOCKS_PER_SEC)));
+
 	ui->results->scrollToBottom();
 
 }
@@ -165,28 +158,33 @@ void ScrabbleGui::save() {
 
 // TODO: Error handlig in load
 void ScrabbleGui::load() {
-	QString file_name = QFileDialog::getOpenFileName(this, "Load Game", "", "Scrabble (*.save)");
+	QString filename = QFileDialog::getOpenFileName(this, "Load Game", "", "Scrabble (*.save)");
+	load(filename);
+}
 
-	std::ifstream file(qPrintable(file_name));
+void ScrabbleGui::load(QString filename) {
+	std::ifstream file(qPrintable(filename));
+	if(file) {
+		// Read game type
+		char c = file.get();
+		file.get();
+		new_game(c == '0' ? SCRABBLE : WORDSWITHFRIENDS);
 
-	// Read game type
-	char c = file.get();
-	file.get();
-	new_game(c == '0' ? SCRABBLE : WORDSWITHFRIENDS);
+		// Read tiles
+		char tiles[8];
+		file.getline(tiles,8);
+		ui->letters->setText(tiles);
 
-	// Read tiles
-	char tiles[8];
-	file.getline(tiles,8);
-	ui->letters->setText(tiles);
-
-	// Read board
-	for(int y = 0; y < 15; y++) {
-		for(int x = 0; x < 15; x++) {
-			do {
-				c = file.get();
-			} while(c == ',' || c == '\n');
-			ui->board->item(y, x)->setText(QChar(c));
+		// Read board
+		for(int y = 0; y < 15; y++) {
+			for(int x = 0; x < 15; x++) {
+				do {
+					c = file.get();
+				} while(c == ',' || c == '\n');
+				ui->board->item(y, x)->setText(QChar(c));
+			}
 		}
+		solve();
 	}
 }
 

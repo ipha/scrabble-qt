@@ -2,13 +2,14 @@
 #define SCRABBLEGUI_H
 
 #include <QMainWindow>
+#include <QThread>
 #include "ui_scrabblegui.h"
-#include "scrabble.h"
+#include "scrabbleworker.h"
 
 Q_DECLARE_METATYPE(result)
 
 namespace Ui {
-class ScrabbleGui;
+	class ScrabbleGui;
 }
 
 class ScrabbleGui : public QMainWindow {
@@ -19,10 +20,13 @@ public:
 private:
 	Ui::ScrabbleGui *ui;
 	QMenu* new_menu;
-	Scrabble *solver;
+	ScrabbleWorker *solver;
+	QThread* solverThread;
 	void new_game(int gametype);
+	void load(QString filename);
 private slots:
 	void solve();
+	void solveDone();
 	void save();
 	void load();
 	void new_action(QAction* action);

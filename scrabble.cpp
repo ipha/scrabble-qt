@@ -6,6 +6,7 @@ Scrabble::Scrabble (const char* filename, int game) {
 
 	// Open wordfile and add to list
 	FILE* wordfile = fopen(filename, "r");
+
 	if(wordfile) {
 		char line[STRSIZE];
 		while(fscanf(wordfile, "%15s", line) != EOF) {
@@ -60,7 +61,7 @@ void Scrabble::solve (const char* tiles) {
 		// Horizontal pass
 		printf("Checking length %i horizontal\n", length);
 		for(int y = 0; y < 15; y++) {
-		for(int x = 0; x < (15-length); x++) {
+		for(int x = 0; x < (16-length); x++) {
 			if(!check_spot(x, y, length, HORIZONTAL))
 				continue;
 			get_frame(frame, x, y, length, HORIZONTAL);
@@ -76,7 +77,7 @@ void Scrabble::solve (const char* tiles) {
 		}
 		// Vertical pass
 		printf("Checking length %i vertical\n", length);
-		for(int y = 0; y < (15-length); y++) {
+		for(int y = 0; y < (16-length); y++) {
 		for(int x = 0; x < 15; x++) {
 			if(!check_spot(x, y, length, VERTICAL))
 				continue;
