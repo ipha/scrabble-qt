@@ -4,6 +4,7 @@
 #include <cstring>
 #include <vector>
 #include "hashset.h"
+#include "hashquick.h"
 #include "scrabblerules.h"
 
 #define HORIZONTAL 0
@@ -43,6 +44,7 @@ struct perm {
 
 class Scrabble {
 	int cache[2][15][15];
+	HashQuick wordlist_quick;
 	HashSet wordlist;
 	HashSet perms;
 public:
@@ -54,7 +56,8 @@ public:
 	void solve			(const char* tiles);
 private:
 	void update_cache	();
-	bool check_word		(int x, int y, const char* word, int direction);
+	bool check_word_horz		(int x, int y, const char* word);
+	bool check_word_vert		(int x, int y, const char* word);
 	bool check_spot		(int x, int y, int length, int direction);
 	void get_frame		(char* frame, int x, int y, int length, int direction);
 	void fill_frame		(char* word, const char* frame, const char* tiles);

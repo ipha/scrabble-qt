@@ -10,6 +10,7 @@ Scrabble::Scrabble (const char* filename, int game) {
 	if(wordfile) {
 		char* line = new char[STRSIZE];
 		while(fscanf(wordfile, "%15s", line) != EOF) {
+			wordlist_quick.add(line);
 			if(!wordlist.add(line))
 				delete[] line;
 			line = new char[STRSIZE];
@@ -32,6 +33,9 @@ void Scrabble::solve (const char* tiles) {
 	char frame[STRSIZE];
 	char word[STRSIZE];
 
+	bool has_wild;
+
+
 	// Clear previous results
 	results.clear();
 
@@ -49,10 +53,12 @@ void Scrabble::solve (const char* tiles) {
 				blank[0] = c;
 				get_perms(tiles_temp, length, NULL);
 			}
+			has_wild = true;
 		}
 		// Without blanks
 		else {
 			get_perms(tiles, length, NULL);
+			has_wild = false;
 		}
 		// Horizontal pass
 		printf("Checking length %i horizontal\n", length);
@@ -60,19 +66,24 @@ void Scrabble::solve (const char* tiles) {
 		for(int x = 0; x < (15-length); x++) {
 			if(check_spot(x, y, length, HORIZONTAL)){
 				get_frame(frame, x, y, length, HORIZONTAL);
-				for(auto it = perms.begin(); it; perms.next(&it)) {
-					fill_frame(word, frame, *it);
-					if(check_word(x, y, word, HORIZONTAL)) {
-						score_t s = score(x, y, HORIZONTAL, word);
-						results.push_back(result{
-							"",
-							.x = cache[HORIZONTAL][x][y],
-							.y = y,
-							.direction = HORIZONTAL,
-							.score = s.score,
-							.weight = s.weight
-						});
-						strcpy(results.back().word, word);
+				if(wordlist_quick.contains(tiles, frame, has_wild)){
+	 				for(auto it = perms.begin(); it; perms.next(&it)) {
+	 					if(wordlist_quick.contains(*it, frame)) {
+	 						fill_frame(word, frame, *it);
+							if(check_word_horz(x, y, word)) {
+								score_t s = score(x, y, HORIZONTAL, word);
+								results.push_back(result{
+									"",
+									.x = cache[HORIZONTAL][x][y],
+									.y = y,
+									.direction = HORIZONTAL,
+									.score = s.score,
+									.weight = s.weight
+								});
+								strcpy(results.back().word, word);
+							}
+	 					}
+						
 					}
 				}
 			}
@@ -84,19 +95,23 @@ void Scrabble::solve (const char* tiles) {
 		for(int x = 0; x < 15; x++) {
 			if(check_spot(x, y, length, VERTICAL)){
 				get_frame(frame, x, y, length, VERTICAL);
-				for(auto it = perms.begin(); it; perms.next(&it)) {
-					fill_frame(word, frame, *it);
-					if(check_word(x, y, word, VERTICAL)) {
-						score_t s = score(x, y, VERTICAL, word);
-						results.push_back(result{
-							"",
-							.x = x,
-							.y = cache[VERTICAL][x][y],
-							.direction = VERTICAL,
-							.score = s.score,
-							.weight = s.weight
-						});
-						strcpy(results.back().word, word);
+				if(wordlist_quick.contains(tiles, frame, has_wild)){
+					for(auto it = perms.begin(); it; perms.next(&it)) {
+						if(wordlist_quick.contains(*it, frame)) {
+							fill_frame(word, frame, *it);
+							if(check_word_vert(x, y, word)) {
+								score_t s = score(x, y, VERTICAL, word);
+								results.push_back(result{
+									"",
+									.x = x,
+									.y = cache[VERTICAL][x][y],
+									.direction = VERTICAL,
+									.score = s.score,
+									.weight = s.weight
+								});
+								strcpy(results.back().word, word);
+							}
+						}
 					}
 				}
 			}
@@ -108,34 +123,44 @@ void Scrabble::solve (const char* tiles) {
 	std::sort(results.begin(), results.end());
 }
 
-bool Scrabble::check_word (int x, int y, const char* word, int direction) {
-	if(wordlist.contains_tolower(word)) {
-		// Check each new word
-		char new_word[STRSIZE];
-		int start = cache[direction][x][y];
+bool Scrabble::check_word_horz (int x, int y, const char* word) {
+	if(!wordlist_quick.contains(word))
+		return false;
+	if(!wordlist.contains(word))
+		return false;
+	// Check each new word
+	char new_word[STRSIZE];
+	int start = cache[HORIZONTAL][x][y];
 
-		if(direction == HORIZONTAL) {
-			for(; *word; word++) {
-				if(board[start][y] == ' ') {
-					full_word(new_word, start, y, *word, VERTICAL);
-					if(new_word[1] && !wordlist.contains_tolower(new_word))
-						return false;
-				}
-				start++;
-			}
-		} else if(direction == VERTICAL) {
-			for(; *word; word++) {
-				if(board[x][start] == ' ') {
-					full_word(new_word, x, start, *word, HORIZONTAL);
-					if(new_word[1] && !wordlist.contains_tolower(new_word))
-						return false;
-				}
-				start++;
-			}
+	for(; *word; word++) {
+		if(board[start][y] == ' ') {
+			full_word(new_word, start, y, *word, VERTICAL);
+			if(new_word[1] && !wordlist.contains(new_word))
+				return false;
 		}
-		return true;
+		start++;
 	}
-	return false;
+	return true;
+}
+
+bool Scrabble::check_word_vert (int x, int y, const char* word) {
+	if(!wordlist_quick.contains(word))
+		return false;
+	if(!wordlist.contains(word))
+		return false;
+	// Check each new word
+	char new_word[STRSIZE];
+	int start = cache[VERTICAL][x][y];
+
+	for(; *word; word++) {
+		if(board[x][start] == ' ') {
+			full_word(new_word, x, start, *word, HORIZONTAL);
+			if(new_word[1] && !wordlist.contains(new_word))
+				return false;
+		}
+		start++;
+	}
+	return true;
 }
 
 void Scrabble::update_cache () {
