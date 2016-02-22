@@ -69,6 +69,10 @@ ScrabbleGui::ScrabbleGui(QWidget *parent) : QMainWindow(parent), ui(new Ui::Scra
 			}
 		}
 		solve();
+		tiles[6] = '*';
+		ui->letters->setText(tiles);
+		solve();
+		exit(1);
 	}
 }
 
